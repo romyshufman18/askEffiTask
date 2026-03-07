@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AskEffi Chat</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 720px;
+      height: 90vh;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      padding: 16px 24px;
+      background: #10a37f;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
+      max-width: 75%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      line-height: 1.5;
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: #10a37f;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: #f0f0f0;
+      color: #1a1a1a;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.typing {
+      color: #888;
+      font-style: italic;
+    }
+
+    .input-area {
+      display: flex;
+      padding: 12px 16px;
+      border-top: 1px solid #e5e5e5;
+      gap: 10px;
+      background: #fff;
+    }
+
+    #user-input {
+      flex: 1;
+      resize: none;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      max-height: 120px;
+      line-height: 1.5;
+    }
+
+    #user-input:focus { border-color: #10a37f; }
+
+    #send-btn {
+      background: #10a37f;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      align-self: flex-end;
+      height: 42px;
+    }
+
+    #send-btn:hover { background: #0d8f6f; }
+    #send-btn:disabled { background: #a0d4c4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <header>AskEffi – ChatGPT Assistant</header>
+    <div id="messages">
+      <div class="message assistant">Hi! I'm your AI assistant. How can I help you today?</div>
+    </div>
+    <div class="input-area">
+      <textarea id="user-input" rows="1" placeholder="Type a message..."></textarea>
+      <button id="send-btn">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    const history = [];
+
+    function scrollToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addMessage(role, text) {
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.textContent = text;
+      messagesEl.appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+
+    async function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+      sendBtn.disabled = true;
+
+      addMessage('user', text);
+      history.push({ role: 'user', content: text });
+
+      const typingEl = addMessage('assistant typing', 'Thinking...');
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: history }),
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          typingEl.textContent = `Error: ${data.error}`;
+          typingEl.classList.remove('typing');
+        } else {
+          const reply = data.message.content;
+          typingEl.textContent = reply;
+          typingEl.classList.remove('typing');
+          history.push({ role: 'assistant', content: reply });
+        }
+      } catch (err) {
+        typingEl.textContent = 'Network error. Please try again.';
+        typingEl.classList.remove('typing');
+      }
+
+      sendBtn.disabled = false;
+      scrollToBottom();
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    });
+  </script>
+</body>
+</html>

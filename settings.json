@@ -1,0 +1,6 @@
+{
+  "permissions": {
+    "allow": ["Read(c:\\myProjects\\askEffiTask\\**)", "Edit(c:\\myProjects\\askEffiTask\\**)"],
+    "deny": ["Read(.env*)"]
+  }
+}
