@@ -39,10 +39,13 @@ router.get('/callback', async (req, res) => {
     });
 
     const data = await response.json();
+    console.log('OAuth token response:', JSON.stringify(data, null, 2));
     if (data.access_token) {
       req.session.onedrive_token = data.access_token;
+      req.session.save(() => res.redirect('/'));
+    } else {
+      res.redirect('/?error=auth_failed');
     }
-    res.redirect('/');
   } catch (err) {
     console.error('OAuth callback error:', err);
     res.redirect('/?error=auth_failed');
