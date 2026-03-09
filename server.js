@@ -38,10 +38,13 @@ app.post('/api/chat', async (req, res) => {
       const fileSummary = files.map(f => {
         const type = f.folder ? 'folder' : (f.file?.mimeType || 'file');
         const modified = f.lastModifiedDateTime
-          ? new Date(f.lastModifiedDateTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+          ? new Date(f.lastModifiedDateTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
           : 'unknown date';
         const size = f.size != null ? `${Math.round(f.size / 1024)} KB` : '';
-        return `- ${f.name} (${type}${size ? ', ' + size : ''}, last modified: ${modified})`;
+        const path = f.parentReference?.path
+          ? f.parentReference.path.replace('/drive/root:', '') || '/'
+          : '/';
+        return `- ${f.name} (type: ${type}${size ? ', size: ' + size : ''}, path: ${path}, last modified: ${modified})`;
       }).join('\n');
 
       systemMessages.push({
