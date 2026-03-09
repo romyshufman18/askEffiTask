@@ -40,11 +40,14 @@ app.post('/api/chat', async (req, res) => {
         const modified = f.lastModifiedDateTime
           ? new Date(f.lastModifiedDateTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
           : 'unknown date';
+        const created = f.createdDateTime
+          ? new Date(f.createdDateTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : 'unknown';
         const size = f.size != null ? `${Math.round(f.size / 1024)} KB` : '';
         const path = f.parentReference?.path
           ? f.parentReference.path.replace('/drive/root:', '') || '/'
           : '/';
-        return `- ${f.name} (type: ${type}${size ? ', size: ' + size : ''}, path: ${path}, last modified: ${modified})`;
+        return `- ${f.name} (type: ${type}${size ? ', size: ' + size : ''}, path: ${path}, created: ${created}, last modified: ${modified})`;
       }).join('\n');
 
       systemMessages.push({
