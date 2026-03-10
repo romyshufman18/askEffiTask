@@ -20,6 +20,25 @@ app.use('/auth', authRouter);
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+const DATE_FORMAT_OPTIONS = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+function formatDate(iso) {
+  return iso ? new Date(iso).toLocaleDateString('en-US', DATE_FORMAT_OPTIONS) : 'unknown';
+}
+
+function buildFileSummary(files) {
+  return files.map(f => {
+    const type = f.folder ? 'folder' : (f.file?.mimeType || 'file');
+    const size = f.size != null ? `${Math.round(f.size / 1024)} KB` : '';
+    const path = f.parentReference?.path
+      ? f.parentReference.path.replace('/drive/root:', '') || '/'
+      : '/';
+    const created = formatDate(f.fileSystemInfo?.createdDateTime);
+    const modified = formatDate(f.fileSystemInfo?.lastModifiedDateTime);
+    const url = f.webUrl ? `, url: ${f.webUrl}` : '';
+    return `- ${f.name} (type: ${type}${size ? ', size: ' + size : ''}, path: ${path}, created: ${created}, last modified: ${modified}${url})`;
+  }).join('\n');
+}
+
 app.get('/api/onedrive/status', (req, res) => {
   res.json({ connected: !!req.session.onedrive_token });
 });
@@ -34,25 +53,13 @@ app.post('/api/chat', async (req, res) => {
 
   if (req.session.onedrive_token) {
     try {
-      const files = await getFileMetadata(req.session.onedrive_token);
-      const fileSummary = files.map(f => {
-        const type = f.folder ? 'folder' : (f.file?.mimeType || 'file');
-        const modified = f.lastModifiedDateTime
-          ? new Date(f.lastModifiedDateTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-          : 'unknown date';
-        const created = f.createdDateTime
-          ? new Date(f.createdDateTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-          : 'unknown';
-        const size = f.size != null ? `${Math.round(f.size / 1024)} KB` : '';
-        const path = f.parentReference?.path
-          ? f.parentReference.path.replace('/drive/root:', '') || '/'
-          : '/';
-        return `- ${f.name} (type: ${type}${size ? ', size: ' + size : ''}, path: ${path}, created: ${created}, last modified: ${modified})`;
-      }).join('\n');
-
+      if (!req.session.onedrive_file_summary) {
+        const files = await getFileMetadata(req.session.onedrive_token);
+        req.session.onedrive_file_summary = buildFileSummary(files);
+      }
       systemMessages.push({
         role: 'system',
-        content: `The user has connected their OneDrive. Here are their files (metadata only — no file contents):\n\n${fileSummary}\n\nUse this information to answer questions about their files. Do not invent files that are not listed.`,
+        content: `The user has connected their OneDrive. Here are their files (metadata only — no file contents):\n\n${req.session.onedrive_file_summary}\n\nUse this information to answer questions about their files. Do not invent files that are not listed.`,
       });
     } catch (err) {
       console.error('OneDrive metadata fetch error:', err);

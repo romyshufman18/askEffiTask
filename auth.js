@@ -5,8 +5,9 @@ const AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
 const SCOPES = 'Files.Read offline_access';
 
+const { MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MICROSOFT_REDIRECT_URI } = process.env;
+
 router.get('/onedrive', (req, res) => {
-  const { MICROSOFT_CLIENT_ID, MICROSOFT_REDIRECT_URI } = process.env;
   const params = new URLSearchParams({
     client_id: MICROSOFT_CLIENT_ID,
     response_type: 'code',
@@ -20,8 +21,6 @@ router.get('/onedrive', (req, res) => {
 router.get('/callback', async (req, res) => {
   const { code, error } = req.query;
   if (error || !code) return res.redirect('/?error=auth_failed');
-
-  const { MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MICROSOFT_REDIRECT_URI } = process.env;
 
   try {
     const body = new URLSearchParams({
