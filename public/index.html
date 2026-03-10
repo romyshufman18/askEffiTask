@@ -54,7 +54,7 @@
       text-overflow: ellipsis;
     }
 
-    #scope-reset {
+    #scope-refresh, #scope-reset {
       background: none;
       border: none;
       cursor: pointer;
@@ -65,7 +65,12 @@
       display: none;
     }
 
+    #scope-refresh:hover { color: #005fa3; }
+    #scope-refresh:disabled { opacity: 0.4; cursor: not-allowed; }
     #scope-reset:hover { color: #c00; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinning { display: inline-block !important; animation: spin 0.7s linear infinite; }
 
     #folder-tree {
       flex: 1;
@@ -276,6 +281,7 @@
     <div id="folder-sidebar">
       <div class="sidebar-header">
         <span id="scope-label">📁 Documents</span>
+        <button id="scope-refresh" onclick="refreshFolder()" title="Refresh folder">🔄</button>
         <button id="scope-reset" onclick="resetToRoot()" title="Reset to Documents">✕</button>
       </div>
       <div id="folder-tree"></div>
@@ -377,14 +383,40 @@
     // ── Folder Tree ──────────────────────────────────────────────
 
     let selectedFolderId = null;
+    let selectedFolderName = null;
 
     function updateScopeIndicator(folderName) {
       document.getElementById('scope-label').textContent = `📁 ${folderName || 'Documents'}`;
-      document.getElementById('scope-reset').style.display = folderName ? 'inline' : 'none';
+      const showButtons = folderName ? 'inline' : 'none';
+      document.getElementById('scope-refresh').style.display = showButtons;
+      document.getElementById('scope-reset').style.display = showButtons;
+    }
+
+    async function refreshFolder() {
+      const btn = document.getElementById('scope-refresh');
+      btn.disabled = true;
+      btn.classList.add('spinning');
+      const displayName = selectedFolderName || 'Documents';
+      document.getElementById('status-text').textContent = `OneDrive: ${displayName} (refreshing…)`;
+      try {
+        const res = await fetch('/api/onedrive/focus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folderId: selectedFolderId, folderName: selectedFolderName }),
+        });
+        const { fileCount } = await res.json();
+        const countStr = fileCount != null ? ` (${fileCount} files)` : '';
+        document.getElementById('status-text').textContent = `OneDrive: ${displayName}${countStr}`;
+      } catch {
+        document.getElementById('status-text').textContent = `OneDrive: ${displayName} (refresh failed)`;
+      }
+      btn.classList.remove('spinning');
+      btn.disabled = false;
     }
 
     async function resetToRoot() {
       selectedFolderId = null;
+      selectedFolderName = null;
       document.querySelectorAll('.folder-name').forEach(el => el.classList.remove('selected'));
       const rootLabel = document.querySelector('.folder-name[data-id="root"]');
       if (rootLabel) rootLabel.classList.add('selected');
@@ -469,6 +501,7 @@
       document.querySelectorAll('.folder-name').forEach(el => el.classList.remove('selected'));
       labelEl.classList.add('selected');
       selectedFolderId = folderId || null;
+      selectedFolderName = folderId ? folderName : null;
 
       const displayName = folderId ? folderName : 'Documents';
       document.getElementById('status-text').textContent = `OneDrive: ${displayName} (loading…)`;
@@ -508,6 +541,7 @@
           btn.textContent = 'Reconnect';
           document.getElementById('folder-sidebar').classList.add('visible');
           initFolderTree(folderName, folderId);
+          selectedFolderName = folderName || null;
           updateScopeIndicator(folderName);
         }
       } catch (e) { /* silently ignore */ }
