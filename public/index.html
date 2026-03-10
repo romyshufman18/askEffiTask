@@ -12,15 +12,131 @@
       background: #f0f2f5;
       height: 100vh;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
     }
 
-    .chat-container {
-      width: 100%;
-      max-width: 720px;
+    .app-wrapper {
+      display: flex;
       height: 90vh;
+      gap: 12px;
+    }
+
+    /* ── Folder Sidebar ── */
+    #folder-sidebar {
+      width: 220px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #folder-sidebar.visible { display: flex; }
+
+    .sidebar-header {
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #333;
+      border-bottom: 1px solid #e5e5e5;
+      background: #f8f9fa;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    #scope-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #scope-reset {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: #0078d4;
+      padding: 0;
+      flex-shrink: 0;
+      display: none;
+    }
+
+    #scope-reset:hover { color: #c00; }
+
+    #folder-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+
+    .tree-node { user-select: none; }
+
+    .tree-row {
+      display: flex;
+      align-items: center;
+      padding: 5px 10px;
+      cursor: default;
+      border-radius: 6px;
+      margin: 1px 6px;
+    }
+
+    .tree-row:hover { background: #f0f5ff; }
+
+    .toggle-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.65rem;
+      color: #999;
+      width: 16px;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .toggle-btn:hover { color: #333; }
+
+    .folder-icon {
+      font-size: 0.85rem;
+      margin: 0 4px;
+      flex-shrink: 0;
+    }
+
+    .folder-name {
+      cursor: pointer;
+      font-size: 0.83rem;
+      color: #333;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .folder-name:hover { color: #0078d4; }
+    .folder-name.selected { color: #0078d4; font-weight: 600; }
+
+    .tree-children { display: none; padding-left: 16px; }
+    .tree-children.expanded { display: block; }
+
+    .tree-loading {
+      font-size: 0.78rem;
+      color: #aaa;
+      padding: 4px 10px;
+      font-style: italic;
+    }
+
+    .tree-empty {
+      font-size: 0.78rem;
+      color: #bbb;
+      padding: 4px 10px;
+    }
+
+    /* ── Chat Container ── */
+    .chat-container {
+      width: 720px;
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 4px 24px rgba(0,0,0,0.1);
@@ -156,21 +272,31 @@
   </style>
 </head>
 <body>
-  <div class="chat-container">
-    <header>AskEffi – ChatGPT Assistant</header>
-    <div id="onedrive-bar">
-      <div id="onedrive-status">
-        <span id="status-dot"></span>
-        <span id="status-text">OneDrive: not connected</span>
+  <div class="app-wrapper">
+    <div id="folder-sidebar">
+      <div class="sidebar-header">
+        <span id="scope-label">📁 Documents</span>
+        <button id="scope-reset" onclick="resetToRoot()" title="Reset to Documents">✕</button>
       </div>
-      <button id="connect-btn" onclick="window.location='/auth/onedrive'">Connect OneDrive</button>
+      <div id="folder-tree"></div>
     </div>
-    <div id="messages">
-      <div class="message assistant">Hi! I'm your AI assistant. How can I help you today?</div>
-    </div>
-    <div class="input-area">
-      <textarea id="user-input" rows="1" placeholder="Type a message..."></textarea>
-      <button id="send-btn">Send</button>
+
+    <div class="chat-container">
+      <header>AskEffi – ChatGPT Assistant</header>
+      <div id="onedrive-bar">
+        <div id="onedrive-status">
+          <span id="status-dot"></span>
+          <span id="status-text">OneDrive: not connected</span>
+        </div>
+        <button id="connect-btn" onclick="window.location='/auth/onedrive'">Connect OneDrive</button>
+      </div>
+      <div id="messages">
+        <div class="message assistant">Hi! I'm your AI assistant. How can I help you today?</div>
+      </div>
+      <div class="input-area">
+        <textarea id="user-input" rows="1" placeholder="Type a message..."></textarea>
+        <button id="send-btn">Send</button>
+      </div>
     </div>
   </div>
 
@@ -248,18 +374,141 @@
       inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
     });
 
-    // Check OneDrive connection status on load
+    // ── Folder Tree ──────────────────────────────────────────────
+
+    let selectedFolderId = null;
+
+    function updateScopeIndicator(folderName) {
+      document.getElementById('scope-label').textContent = `📁 ${folderName || 'Documents'}`;
+      document.getElementById('scope-reset').style.display = folderName ? 'inline' : 'none';
+    }
+
+    async function resetToRoot() {
+      selectedFolderId = null;
+      document.querySelectorAll('.folder-name').forEach(el => el.classList.remove('selected'));
+      const rootLabel = document.querySelector('.folder-name[data-id="root"]');
+      if (rootLabel) rootLabel.classList.add('selected');
+      updateScopeIndicator(null);
+      document.getElementById('status-text').textContent = 'OneDrive: Documents (loading…)';
+      const res = await fetch('/api/onedrive/focus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: null, folderName: null }),
+      });
+      const { fileCount } = await res.json();
+      const countStr = fileCount != null ? ` (${fileCount} files)` : '';
+      document.getElementById('status-text').textContent = `OneDrive: Documents${countStr}`;
+    }
+
+    function createTreeNode(id, name, childCount) {
+      const node = document.createElement('div');
+      node.className = 'tree-node';
+
+      const row = document.createElement('div');
+      row.className = 'tree-row';
+
+      const toggle = document.createElement('button');
+      toggle.className = 'toggle-btn';
+
+      const icon = document.createElement('span');
+      icon.className = 'folder-icon';
+      icon.textContent = '📁';
+
+      const label = document.createElement('span');
+      label.className = 'folder-name';
+      label.textContent = name;
+      label.dataset.id = id || 'root';
+      if ((id || null) === selectedFolderId) label.classList.add('selected');
+
+      const children = document.createElement('div');
+      children.className = 'tree-children';
+
+      if (childCount === 0) {
+        toggle.style.visibility = 'hidden';
+      } else {
+        toggle.textContent = '▶';
+        let loaded = false;
+        toggle.addEventListener('click', async () => {
+          const isExpanded = children.classList.toggle('expanded');
+          toggle.textContent = isExpanded ? '▼' : '▶';
+          if (isExpanded && !loaded) {
+            loaded = true;
+            children.innerHTML = '<div class="tree-loading">Loading...</div>';
+            await loadChildren(id, children);
+          }
+        });
+      }
+
+      label.addEventListener('click', () => focusFolder(id, name, label));
+
+      row.appendChild(toggle);
+      row.appendChild(icon);
+      row.appendChild(label);
+      node.appendChild(row);
+      node.appendChild(children);
+      return node;
+    }
+
+    async function loadChildren(parentId, container) {
+      try {
+        const url = parentId ? `/api/onedrive/folders?itemId=${parentId}` : '/api/onedrive/folders';
+        const res = await fetch(url);
+        const folders = await res.json();
+        container.innerHTML = '';
+        if (!folders.length) {
+          container.innerHTML = '<div class="tree-empty">No subfolders</div>';
+          return;
+        }
+        folders.forEach(f => container.appendChild(createTreeNode(f.id, f.name, f.childCount)));
+      } catch {
+        container.innerHTML = '<div class="tree-empty">Error loading folders</div>';
+      }
+    }
+
+    async function focusFolder(folderId, folderName, labelEl) {
+      document.querySelectorAll('.folder-name').forEach(el => el.classList.remove('selected'));
+      labelEl.classList.add('selected');
+      selectedFolderId = folderId || null;
+
+      const displayName = folderId ? folderName : 'Documents';
+      document.getElementById('status-text').textContent = `OneDrive: ${displayName} (loading…)`;
+
+      const res = await fetch('/api/onedrive/focus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: folderId || null, folderName: folderId ? folderName : null }),
+      });
+      const { fileCount } = await res.json();
+
+      const countStr = fileCount != null ? ` (${fileCount} files)` : '';
+      document.getElementById('status-text').textContent = `OneDrive: ${displayName}${countStr}`;
+      updateScopeIndicator(folderId ? folderName : null);
+    }
+
+    function initFolderTree(folderName, folderId) {
+      selectedFolderId = folderId || null;
+      const tree = document.getElementById('folder-tree');
+      tree.innerHTML = '';
+      const rootNode = createTreeNode(null, 'Documents', null);
+      tree.appendChild(rootNode);
+    }
+
+    // ── OneDrive Status ──────────────────────────────────────────
+
     async function checkOnedriveStatus() {
       try {
         const res = await fetch('/api/onedrive/status');
-        const { connected } = await res.json();
+        const { connected, folderId, folderName } = await res.json();
         const dot = document.getElementById('status-dot');
         const text = document.getElementById('status-text');
         const btn = document.getElementById('connect-btn');
         if (connected) {
           dot.classList.add('connected');
-          text.textContent = 'OneDrive: connected';
+          text.textContent = `OneDrive: ${folderName || 'Documents'}`;
           btn.textContent = 'Reconnect';
+          document.getElementById('folder-sidebar').classList.add('visible');
+          initFolderTree(folderName, folderId);
+          updateScopeIndicator(folderName);
         }
       } catch (e) { /* silently ignore */ }
     }

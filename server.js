@@ -3,7 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const OpenAI = require('openai');
 const authRouter = require('./auth');
-const { getFileMetadata } = require('./onedrive');
+const { getFileMetadata, getFolderChildren } = require('./onedrive');
 
 const app = express();
 app.use(express.json());
@@ -40,7 +40,40 @@ function buildFileSummary(files) {
 }
 
 app.get('/api/onedrive/status', (req, res) => {
-  res.json({ connected: !!req.session.onedrive_token });
+  res.json({
+    connected: !!req.session.onedrive_token,
+    folderId: req.session.onedrive_folder_id || null,
+    folderName: req.session.onedrive_folder_name || null,
+  });
+});
+
+app.get('/api/onedrive/folders', async (req, res) => {
+  if (!req.session.onedrive_token) return res.status(401).json({ error: 'Not connected' });
+  try {
+    const folders = await getFolderChildren(req.session.onedrive_token, req.query.itemId);
+    res.json(folders.map(f => ({ id: f.id, name: f.name, childCount: f.folder?.childCount ?? 0 })));
+  } catch (err) {
+    console.error('Folder list error:', err);
+    res.status(500).json({ error: 'Failed to list folders' });
+  }
+});
+
+app.post('/api/onedrive/focus', async (req, res) => {
+  const { folderId, folderName } = req.body;
+  req.session.onedrive_folder_id = folderId || null;
+  req.session.onedrive_folder_name = folderName || null;
+  req.session.onedrive_file_summary = null;
+
+  let fileCount = null;
+  try {
+    const files = await getFileMetadata(req.session.onedrive_token, folderId || null);
+    req.session.onedrive_file_summary = buildFileSummary(files);
+    fileCount = files.filter(f => !f.folder).length;
+  } catch (err) {
+    console.error('Focus pre-fetch error:', err);
+  }
+
+  req.session.save(() => res.json({ ok: true, fileCount }));
 });
 
 app.post('/api/chat', async (req, res) => {
@@ -54,7 +87,7 @@ app.post('/api/chat', async (req, res) => {
   if (req.session.onedrive_token) {
     try {
       if (!req.session.onedrive_file_summary) {
-        const files = await getFileMetadata(req.session.onedrive_token);
+        const files = await getFileMetadata(req.session.onedrive_token, req.session.onedrive_folder_id);
         req.session.onedrive_file_summary = buildFileSummary(files);
       }
       systemMessages.push({
