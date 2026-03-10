@@ -38,6 +38,45 @@
       letter-spacing: 0.3px;
     }
 
+    #onedrive-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 24px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e5e5e5;
+      font-size: 0.85rem;
+      color: #555;
+    }
+
+    #onedrive-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+
+    #status-dot.connected { background: #10a37f; }
+
+    #connect-btn {
+      background: #0078d4;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 14px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #connect-btn:hover { background: #005fa3; }
+
     #messages {
       flex: 1;
       overflow-y: auto;
@@ -119,6 +158,13 @@
 <body>
   <div class="chat-container">
     <header>AskEffi – ChatGPT Assistant</header>
+    <div id="onedrive-bar">
+      <div id="onedrive-status">
+        <span id="status-dot"></span>
+        <span id="status-text">OneDrive: not connected</span>
+      </div>
+      <button id="connect-btn" onclick="window.location='/auth/onedrive'">Connect OneDrive</button>
+    </div>
     <div id="messages">
       <div class="message assistant">Hi! I'm your AI assistant. How can I help you today?</div>
     </div>
@@ -201,6 +247,31 @@
       inputEl.style.height = 'auto';
       inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
     });
+
+    // Check OneDrive connection status on load
+    async function checkOnedriveStatus() {
+      try {
+        const res = await fetch('/api/onedrive/status');
+        const { connected } = await res.json();
+        const dot = document.getElementById('status-dot');
+        const text = document.getElementById('status-text');
+        const btn = document.getElementById('connect-btn');
+        if (connected) {
+          dot.classList.add('connected');
+          text.textContent = 'OneDrive: connected';
+          btn.textContent = 'Reconnect';
+        }
+      } catch (e) { /* silently ignore */ }
+    }
+
+    // Show auth error if redirected back with error
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'auth_failed') {
+      addMessage('assistant', 'OneDrive connection failed. Please try again.');
+      window.history.replaceState({}, '', '/');
+    }
+
+    checkOnedriveStatus();
   </script>
 </body>
 </html>
