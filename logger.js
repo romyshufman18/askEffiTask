@@ -46,6 +46,6 @@ function readAll() {
 
 // Cleanup on startup and every 24h
 cleanup();
-setInterval(cleanup, 24 * 60 * 60 * 1000);
+setInterval(cleanup, 24 * 60 * 60 * 1000).unref();
 
 module.exports = { log, readAll };
