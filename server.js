@@ -4,6 +4,7 @@ const session = require('express-session');
 const OpenAI = require('openai');
 const authRouter = require('./auth');
 const { getFileMetadata, getFolderChildren } = require('./onedrive');
+const logger = require('./logger');
 
 const app = express();
 app.use(express.json());
@@ -54,6 +55,7 @@ app.get('/api/onedrive/folders', async (req, res) => {
     res.json(folders.map(f => ({ id: f.id, name: f.name, childCount: f.folder?.childCount ?? 0 })));
   } catch (err) {
     console.error('Folder list error:', err);
+    logger.log('error', req.session.id, { endpoint: '/api/onedrive/folders', error: err.message });
     res.status(500).json({ error: 'Failed to list folders' });
   }
 });
@@ -71,7 +73,14 @@ app.post('/api/onedrive/focus', async (req, res) => {
     fileCount = files.filter(f => !f.folder).length;
   } catch (err) {
     console.error('Focus pre-fetch error:', err);
+    logger.log('error', req.session.id, { endpoint: '/api/onedrive/focus', error: err.message });
   }
+
+  const isRefresh = !!(folderId && folderId === req.session.onedrive_folder_id);
+  logger.log(isRefresh ? 'folder_refresh' : 'folder_select', req.session.id, {
+    folderName: folderName || 'Documents',
+    fileCount,
+  });
 
   req.session.save(() => res.json({ ok: true, fileCount }));
 });
@@ -99,16 +108,31 @@ app.post('/api/chat', async (req, res) => {
     }
   }
 
+  const userPrompt = messages[messages.length - 1]?.content || '';
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [...systemMessages, ...messages],
     });
-    res.json({ message: completion.choices[0].message });
+    const reply = completion.choices[0].message;
+    logger.log('chat', req.session.id, {
+      prompt: userPrompt,
+      folderScope: req.session.onedrive_folder_name || (req.session.onedrive_token ? 'Documents' : null),
+    });
+    res.json({ message: reply });
   } catch (err) {
     console.error(err);
+    logger.log('error', req.session.id, { endpoint: '/api/chat', error: err.message });
     res.status(500).json({ error: err.message || 'OpenAI API error' });
   }
+});
+
+app.get('/admin/logs', (req, res) => {
+  res.sendFile(__dirname + '/public/admin.html');
+});
+
+app.get('/api/admin/logs', (req, res) => {
+  res.json(logger.readAll());
 });
 
 const PORT = process.env.PORT || 3000;

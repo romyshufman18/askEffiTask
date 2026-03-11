@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const logger = require('./logger');
 
 const AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
@@ -40,12 +41,16 @@ router.get('/callback', async (req, res) => {
     const data = await response.json();
     if (data.access_token) {
       req.session.onedrive_token = data.access_token;
-      req.session.save(() => res.redirect('/'));
+      req.session.save(() => {
+        logger.log('onedrive_connect', req.session.id, {});
+        res.redirect('/');
+      });
     } else {
       res.redirect('/?error=auth_failed');
     }
   } catch (err) {
     console.error('OAuth callback error:', err);
+    logger.log('error', req.session.id, { endpoint: '/auth/callback', error: err.message });
     res.redirect('/?error=auth_failed');
   }
 });

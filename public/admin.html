@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Activity Logs – AskEffi</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; padding: 32px; }
+    h1 { font-size: 1.3rem; color: #333; margin-bottom: 16px; }
+    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    select, input { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; }
+    button { padding: 6px 14px; background: #10a37f; color: #fff; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; }
+    button:hover { background: #0d8f6f; }
+    #count { font-size: 0.83rem; color: #888; margin-left: auto; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); font-size: 0.85rem; }
+    thead { background: #10a37f; color: #fff; }
+    th { padding: 10px 14px; text-align: left; font-weight: 600; }
+    td { padding: 9px 14px; border-bottom: 1px solid #f0f0f0; color: #333; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fffe; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+    .badge.chat { background: #dbeafe; color: #1d4ed8; }
+    .badge.folder_select { background: #d1fae5; color: #065f46; }
+    .badge.folder_refresh { background: #e0f2fe; color: #0369a1; }
+    .badge.onedrive_connect { background: #ede9fe; color: #5b21b6; }
+    .badge.onedrive_disconnect { background: #fee2e2; color: #991b1b; }
+    .badge.error { background: #fee2e2; color: #b91c1c; }
+    .details { color: #666; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-width: 400px; }
+    #empty { text-align: center; padding: 48px; color: #aaa; font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <h1>Activity Logs</h1>
+  <div class="toolbar">
+    <select id="filter-event">
+      <option value="">All events</option>
+      <option value="chat">chat</option>
+      <option value="folder_select">folder_select</option>
+      <option value="folder_refresh">folder_refresh</option>
+      <option value="onedrive_connect">onedrive_connect</option>
+      <option value="onedrive_disconnect">onedrive_disconnect</option>
+      <option value="error">error</option>
+    </select>
+    <input type="text" id="filter-session" placeholder="Filter by session ID…" style="width:220px" />
+    <button onclick="loadLogs()">Refresh</button>
+    <span id="count"></span>
+  </div>
+  <div id="table-wrap"></div>
+
+  <script>
+    let allLogs = [];
+
+    function formatDetails(details) {
+      if (!details || !Object.keys(details).length) return '—';
+      return Object.entries(details).map(([k, v]) => `${k}: ${v ?? '—'}`).join('\n');
+    }
+
+    function render() {
+      const eventFilter = document.getElementById('filter-event').value;
+      const sessionFilter = document.getElementById('filter-session').value.trim().toLowerCase();
+
+      const filtered = allLogs.filter(log => {
+        if (eventFilter && log.event !== eventFilter) return false;
+        if (sessionFilter && !(log.session || '').toLowerCase().includes(sessionFilter)) return false;
+        return true;
+      });
+
+      document.getElementById('count').textContent = `${filtered.length} entries`;
+
+      if (!filtered.length) {
+        document.getElementById('table-wrap').innerHTML = '<div id="empty">No log entries found.</div>';
+        return;
+      }
+
+      const rows = filtered.map(log => `
+        <tr>
+          <td>${new Date(log.timestamp).toLocaleString()}</td>
+          <td><span class="badge ${log.event}">${log.event}</span></td>
+          <td style="font-family:monospace;font-size:0.78rem">${log.session}</td>
+          <td><div class="details">${formatDetails(log.details)}</div></td>
+        </tr>
+      `).join('');
+
+      document.getElementById('table-wrap').innerHTML = `
+        <table>
+          <thead><tr><th>Timestamp</th><th>Event</th><th>Session</th><th>Details</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    async function loadLogs() {
+      document.getElementById('count').textContent = 'Loading…';
+      const res = await fetch('/api/admin/logs');
+      allLogs = await res.json();
+      render();
+    }
+
+    document.getElementById('filter-event').addEventListener('change', render);
+    document.getElementById('filter-session').addEventListener('input', render);
+
+    loadLogs();
+  </script>
+</body>
+</html>
