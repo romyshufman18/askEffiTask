@@ -3,7 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const OpenAI = require('openai');
 const authRouter = require('./auth');
-const { getFileMetadata, getFolderChildren } = require('./onedrive');
+const { getFileMetadata, getFolderChildren, getFileContent } = require('./onedrive');
 const logger = require('./logger');
 
 const app = express();
@@ -70,7 +70,13 @@ app.post('/api/onedrive/focus', async (req, res) => {
   try {
     const files = await getFileMetadata(req.session.onedrive_token, folderId || null);
     req.session.onedrive_file_summary = buildFileSummary(files);
-    fileCount = files.filter(f => !f.folder).length;
+    req.session.onedrive_file_list = files.filter(f => !f.folder).map(f => ({
+      id: f.id,
+      name: f.name,
+      size: f.size || 0,
+      mimeType: f.file?.mimeType || '',
+    }));
+    fileCount = req.session.onedrive_file_list.length;
   } catch (err) {
     console.error('Focus pre-fetch error:', err);
     logger.log('error', req.session.id, { endpoint: '/api/onedrive/focus', error: err.message });
@@ -85,6 +91,32 @@ app.post('/api/onedrive/focus', async (req, res) => {
   req.session.save(() => res.json({ ok: true, fileCount }));
 });
 
+app.get('/api/onedrive/file-content', async (req, res) => {
+  if (!req.session.onedrive_token) return res.status(401).json({ error: 'Not connected' });
+  const { itemId } = req.query;
+  if (!itemId) return res.status(400).json({ error: 'itemId required' });
+
+  // Find file metadata from session cache
+  const fileList = req.session.onedrive_file_list || [];
+  const fileMeta = fileList.find(f => f.id === itemId);
+  if (!fileMeta) return res.status(404).json({ error: 'File not found in current folder' });
+
+  try {
+    const result = await getFileContent(
+      req.session.onedrive_token,
+      itemId,
+      fileMeta.size || 0,
+      fileMeta.mimeType || '',
+      fileMeta.name
+    );
+    res.json(result);
+  } catch (err) {
+    console.error('File content error:', err);
+    logger.log('error', req.session.id, { endpoint: '/api/onedrive/file-content', error: err.message });
+    res.status(500).json({ error: 'Failed to fetch file content' });
+  }
+});
+
 app.post('/api/chat', async (req, res) => {
   const { messages } = req.body;
   if (!messages || !Array.isArray(messages)) {
@@ -92,12 +124,16 @@ app.post('/api/chat', async (req, res) => {
   }
 
   const systemMessages = [];
+  const userPrompt = messages[messages.length - 1]?.content || '';
 
   if (req.session.onedrive_token) {
     try {
       if (!req.session.onedrive_file_summary) {
         const files = await getFileMetadata(req.session.onedrive_token, req.session.onedrive_folder_id);
         req.session.onedrive_file_summary = buildFileSummary(files);
+        req.session.onedrive_file_list = files.filter(f => !f.folder).map(f => ({
+          id: f.id, name: f.name, size: f.size || 0, mimeType: f.file?.mimeType || '',
+        }));
       }
       systemMessages.push({
         role: 'system',
@@ -106,9 +142,45 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.error('OneDrive metadata fetch error:', err);
     }
+
+    // Detect if user mentioned a filename → fetch and inject content
+    const fileList = req.session.onedrive_file_list || [];
+    const promptLower = userPrompt.toLowerCase();
+    const STOP_WORDS = new Set(['the','me','my','a','an','is','it','in','on','of','to','do','i','you','can','and','or','for','with','this','that','what','how','give','show','tell','have','get','use','are','was','be','at','by']);
+    const promptWords = promptLower.split(/\W+/).filter(w => w.length >= 2 && !STOP_WORDS.has(w));
+    // Exact match first (full filename in prompt) — prevents fuzzy false positives
+    let mentionedFile = fileList.find(f => promptLower.includes(f.name.toLowerCase()));
+    // Fuzzy match only if no exact match found
+    if (!mentionedFile) {
+      mentionedFile = fileList.find(f => {
+        const nameBase = f.name.toLowerCase().replace(/\.[^.]+$/, '');
+        return promptWords.some(w => nameBase.includes(w));
+      });
+    }
+    if (mentionedFile) {
+      console.log('[file-content] matched file:', mentionedFile);
+      try {
+        const result = await getFileContent(
+          req.session.onedrive_token,
+          mentionedFile.id,
+          mentionedFile.size,
+          mentionedFile.mimeType,
+          mentionedFile.name
+        );
+        console.log('[file-content] result:', result.readable, result.reason);
+        if (!result.readable && result.reason === 'too_large') {
+          systemMessages.push({ role: 'system', content: `The file "${mentionedFile.name}" is too large to read (over 500KB).` });
+        } else if (!result.readable) {
+          systemMessages.push({ role: 'system', content: `The file "${mentionedFile.name}" cannot be read — unsupported file type.` });
+        } else {
+          systemMessages.push({ role: 'system', content: `Content of "${mentionedFile.name}":\n\n${result.text}` });
+        }
+      } catch (err) {
+        console.error('File content injection error:', err);
+      }
+    }
   }
 
-  const userPrompt = messages[messages.length - 1]?.content || '';
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
