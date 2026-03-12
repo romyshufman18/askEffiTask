@@ -60,26 +60,41 @@ const READABLE_TYPES = new Set([
 ]);
 
 async function getFileContent(accessToken, itemId, size, mimeType, filename) {
-  if (size > MAX_FILE_SIZE) return { readable: false, reason: 'too_large' };
+  console.log(`[getFileContent] filename="${filename}" size=${size} mimeType="${mimeType}"`);
+
+  if (size > MAX_FILE_SIZE) {
+    console.log(`[getFileContent] SKIP: too_large (${size} > ${MAX_FILE_SIZE})`);
+    return { readable: false, reason: 'too_large' };
+  }
 
   // Fall back to extension-based type detection if mimeType is missing
   if (!mimeType && filename) {
     const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
     mimeType = EXTENSION_MIME[ext] || '';
+    console.log(`[getFileContent] mimeType resolved from extension "${ext}" → "${mimeType}"`);
   }
 
-  if (!READABLE_TYPES.has(mimeType)) return { readable: false, reason: 'unsupported_type' };
+  if (!READABLE_TYPES.has(mimeType)) {
+    console.log(`[getFileContent] SKIP: unsupported_type "${mimeType}"`);
+    return { readable: false, reason: 'unsupported_type' };
+  }
 
   const headers = { Authorization: `Bearer ${accessToken}` };
 
   const url = `${GRAPH_BASE}/me/drive/items/${itemId}/content`;
+  console.log(`[getFileContent] fetching content from Graph API...`);
   const res = await fetch(url, { headers });
+  console.log(`[getFileContent] fetch response: status=${res.status} ok=${res.ok} url=${res.url}`);
   if (!res.ok) return { readable: false, reason: 'fetch_error' };
 
-  const buffer = Buffer.from(await res.arrayBuffer());
+  const arrayBuf = await res.arrayBuffer();
+  const buffer = Buffer.from(arrayBuf);
+  console.log(`[getFileContent] buffer size=${buffer.length} bytes`);
 
   if (mimeType.includes('wordprocessingml') || mimeType === 'application/msword') {
+    console.log(`[getFileContent] parsing with mammoth...`);
     const result = await mammoth.extractRawText({ buffer });
+    console.log(`[getFileContent] mammoth done: text length=${result.value.length}, messages=${JSON.stringify(result.messages)}`);
     return { readable: true, text: result.value };
   }
 

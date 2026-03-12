@@ -145,17 +145,21 @@ app.post('/api/chat', async (req, res) => {
 
     // Detect if user mentioned a filename → fetch and inject content
     const fileList = req.session.onedrive_file_list || [];
+    console.log(`[file-match] fileList has ${fileList.length} files:`, fileList.map(f => `${f.name} (${f.mimeType})`));
     const promptLower = userPrompt.toLowerCase();
     const STOP_WORDS = new Set(['the','me','my','a','an','is','it','in','on','of','to','do','i','you','can','and','or','for','with','this','that','what','how','give','show','tell','have','get','use','are','was','be','at','by']);
     const promptWords = promptLower.split(/\W+/).filter(w => w.length >= 2 && !STOP_WORDS.has(w));
+    console.log(`[file-match] promptWords:`, promptWords);
     // Exact match first (full filename in prompt) — prevents fuzzy false positives
     let mentionedFile = fileList.find(f => promptLower.includes(f.name.toLowerCase()));
+    console.log(`[file-match] exact match:`, mentionedFile ? mentionedFile.name : 'none');
     // Fuzzy match only if no exact match found
     if (!mentionedFile) {
       mentionedFile = fileList.find(f => {
         const nameBase = f.name.toLowerCase().replace(/\.[^.]+$/, '');
         return promptWords.some(w => nameBase.includes(w));
       });
+      console.log(`[file-match] fuzzy match:`, mentionedFile ? mentionedFile.name : 'none');
     }
     if (mentionedFile) {
       console.log('[file-content] matched file:', mentionedFile);
