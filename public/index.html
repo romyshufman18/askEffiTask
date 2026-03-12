@@ -3,45 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AskEffi Chat</title>
+  <title>AskEffi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #10a37f;
+      --accent-dark: #0d8f6f;
+      --accent-muted: rgba(16, 163, 127, 0.15);
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --sidebar-bg: #161820;
+      --border: #2a2d3a;
+      --text: #e8eaf0;
+      --text-muted: #6b7280;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 20px rgba(0,0,0,0.4);
+      --radius: 14px;
+    }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f0f2f5;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
       height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      -webkit-font-smoothing: antialiased;
     }
 
     .app-wrapper {
       display: flex;
-      height: 90vh;
-      gap: 12px;
+      height: 96vh;
+      width: 96vw;
+      max-width: 1200px;
+      gap: 14px;
     }
+
+    .chat-container { flex: 1; }
 
     /* ── Folder Sidebar ── */
     #folder-sidebar {
-      width: 220px;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      width: 230px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
       display: none;
       flex-direction: column;
       overflow: hidden;
+      border: 1px solid var(--border);
     }
 
     #folder-sidebar.visible { display: flex; }
 
     .sidebar-header {
-      padding: 10px 14px;
-      font-size: 0.82rem;
+      padding: 12px 14px;
+      font-size: 0.78rem;
       font-weight: 600;
-      color: #333;
-      border-bottom: 1px solid #e5e5e5;
-      background: #f8f9fa;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+      background: var(--sidebar-bg);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -52,22 +78,29 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      color: var(--text);
+      font-weight: 500;
+      font-size: 0.82rem;
+      text-transform: none;
+      letter-spacing: 0;
     }
 
     #scope-refresh, #scope-reset {
       background: none;
       border: none;
       cursor: pointer;
-      font-size: 0.75rem;
-      color: #0078d4;
-      padding: 0;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      padding: 2px 5px;
       flex-shrink: 0;
       display: none;
+      border-radius: 4px;
+      transition: background 0.15s, color 0.15s;
     }
 
-    #scope-refresh:hover { color: #005fa3; }
-    #scope-refresh:disabled { opacity: 0.4; cursor: not-allowed; }
-    #scope-reset:hover { color: #c00; }
+    #scope-refresh:hover { background: var(--accent-muted); color: var(--accent); }
+    #scope-refresh:disabled { opacity: 0.35; cursor: not-allowed; }
+    #scope-reset:hover { background: #fee2e2; color: #dc2626; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinning { display: inline-block !important; animation: spin 0.7s linear infinite; }
@@ -75,8 +108,12 @@
     #folder-tree {
       flex: 1;
       overflow-y: auto;
-      padding: 6px 0;
+      padding: 8px 0;
     }
+
+    #folder-tree::-webkit-scrollbar { width: 4px; }
+    #folder-tree::-webkit-scrollbar-track { background: transparent; }
+    #folder-tree::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
 
     .tree-node { user-select: none; }
 
@@ -85,195 +122,275 @@
       align-items: center;
       padding: 5px 10px;
       cursor: default;
-      border-radius: 6px;
+      border-radius: 7px;
       margin: 1px 6px;
+      transition: background 0.12s;
     }
 
-    .tree-row:hover { background: #f0f5ff; }
+    .tree-row:hover { background: var(--accent-muted); }
 
     .toggle-btn {
       background: none;
       border: none;
       cursor: pointer;
-      font-size: 0.65rem;
-      color: #999;
+      font-size: 0.58rem;
+      color: #9ca3af;
       width: 16px;
       padding: 0;
       flex-shrink: 0;
+      transition: color 0.12s;
     }
 
-    .toggle-btn:hover { color: #333; }
+    .toggle-btn:hover { color: var(--text); }
 
     .folder-icon {
-      font-size: 0.85rem;
-      margin: 0 4px;
+      font-size: 0.82rem;
+      margin: 0 5px 0 2px;
       flex-shrink: 0;
     }
 
     .folder-name {
       cursor: pointer;
-      font-size: 0.83rem;
-      color: #333;
+      font-size: 0.82rem;
+      color: var(--text);
       flex: 1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: color 0.12s;
     }
 
-    .folder-name:hover { color: #0078d4; }
-    .folder-name.selected { color: #0078d4; font-weight: 600; }
+    .folder-name:hover { color: var(--accent); }
+    .folder-name.selected { color: var(--accent); font-weight: 600; }
 
     .tree-children { display: none; padding-left: 16px; }
     .tree-children.expanded { display: block; }
 
     .tree-loading {
-      font-size: 0.78rem;
-      color: #aaa;
-      padding: 4px 10px;
+      font-size: 0.76rem;
+      color: #9ca3af;
+      padding: 4px 12px;
       font-style: italic;
     }
 
     .tree-empty {
-      font-size: 0.78rem;
-      color: #bbb;
-      padding: 4px 10px;
+      font-size: 0.76rem;
+      color: #c4c9d4;
+      padding: 4px 12px;
     }
 
     /* ── Chat Container ── */
     .chat-container {
-      width: 720px;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      border: 1px solid var(--border);
     }
 
     header {
-      padding: 16px 24px;
-      background: #10a37f;
-      color: #fff;
-      font-size: 1.1rem;
+      padding: 15px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-logo {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 1rem;
       font-weight: 600;
-      letter-spacing: 0.3px;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .header-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 400;
     }
 
     #onedrive-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 24px;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e5e5e5;
-      font-size: 0.85rem;
-      color: #555;
+      padding: 7px 20px;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--text-muted);
     }
 
     #onedrive-status {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
     }
 
     #status-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      background: #ccc;
+      background: #d1d5db;
+      flex-shrink: 0;
     }
 
-    #status-dot.connected { background: #10a37f; }
+    #status-dot.connected { background: var(--accent); box-shadow: 0 0 0 2px rgba(16,163,127,0.2); }
 
     #connect-btn {
-      background: #0078d4;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 5px 14px;
-      font-size: 0.82rem;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 4px 12px;
+      font-size: 0.78rem;
+      font-family: inherit;
+      font-weight: 500;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: border-color 0.15s, background 0.15s;
     }
 
-    #connect-btn:hover { background: #005fa3; }
+    #connect-btn:hover { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); }
 
     #messages {
       flex: 1;
       overflow-y: auto;
-      padding: 20px;
+      padding: 24px 20px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
+    }
+
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+    .message-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .message-row.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .avatar.ai {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .avatar.user-av {
+      background: #2a2d3a;
+      color: var(--text-muted);
     }
 
     .message {
-      max-width: 75%;
+      max-width: 72%;
       padding: 10px 14px;
-      border-radius: 16px;
-      line-height: 1.5;
-      font-size: 0.95rem;
+      border-radius: 14px;
+      line-height: 1.6;
+      font-size: 0.9rem;
       white-space: pre-wrap;
       word-break: break-word;
+      box-shadow: var(--shadow-sm);
     }
 
     .message.user {
-      align-self: flex-end;
-      background: #10a37f;
+      background: var(--accent);
       color: #fff;
       border-bottom-right-radius: 4px;
     }
 
     .message.assistant {
-      align-self: flex-start;
-      background: #f0f0f0;
-      color: #1a1a1a;
+      background: #22263a;
+      color: var(--text);
       border-bottom-left-radius: 4px;
     }
 
     .message.typing {
-      color: #888;
+      color: #9ca3af;
       font-style: italic;
     }
 
     .input-area {
       display: flex;
+      align-items: flex-end;
       padding: 12px 16px;
-      border-top: 1px solid #e5e5e5;
+      border-top: 1px solid var(--border);
       gap: 10px;
-      background: #fff;
+      background: var(--surface);
     }
 
     #user-input {
       flex: 1;
       resize: none;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
       padding: 10px 14px;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-family: inherit;
       outline: none;
       max-height: 120px;
-      line-height: 1.5;
+      line-height: 1.55;
+      color: var(--text);
+      background: #0f1117;
+      transition: border-color 0.15s, background 0.15s;
     }
 
-    #user-input:focus { border-color: #10a37f; }
+    #user-input:focus {
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+
+    #user-input::placeholder { color: #9ca3af; }
 
     #send-btn {
-      background: #10a37f;
+      background: var(--accent);
       color: #fff;
       border: none;
-      border-radius: 8px;
-      padding: 0 20px;
+      border-radius: 10px;
+      width: 40px;
+      height: 40px;
       font-size: 1rem;
       cursor: pointer;
-      transition: background 0.2s;
-      align-self: flex-end;
-      height: 42px;
+      transition: background 0.15s, transform 0.1s;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    #send-btn:hover { background: #0d8f6f; }
-    #send-btn:disabled { background: #a0d4c4; cursor: not-allowed; }
+    #send-btn:hover { background: var(--accent-dark); transform: scale(1.04); }
+    #send-btn:active { transform: scale(0.97); }
+    #send-btn:disabled { background: #a7f3d0; cursor: not-allowed; transform: none; }
+
+    #send-btn svg { pointer-events: none; }
   </style>
 </head>
 <body>
@@ -288,7 +405,13 @@
     </div>
 
     <div class="chat-container">
-      <header>AskEffi – ChatGPT Assistant</header>
+      <header>
+        <div class="header-logo">✦</div>
+        <div>
+          <div class="header-title">AskEffi</div>
+          <div class="header-sub">Your OneDrive AI assistant</div>
+        </div>
+      </header>
       <div id="onedrive-bar">
         <div id="onedrive-status">
           <span id="status-dot"></span>
@@ -297,11 +420,14 @@
         <button id="connect-btn" onclick="window.location='/auth/onedrive'">Connect OneDrive</button>
       </div>
       <div id="messages">
-        <div class="message assistant">Hi! I'm your AI assistant. How can I help you today?</div>
       </div>
       <div class="input-area">
-        <textarea id="user-input" rows="1" placeholder="Type a message..."></textarea>
-        <button id="send-btn">Send</button>
+        <textarea id="user-input" rows="1" placeholder="Ask about your files…"></textarea>
+        <button id="send-btn" title="Send">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 8L2 2l2.5 6L2 14l12-6z" fill="white"/>
+          </svg>
+        </button>
       </div>
     </div>
   </div>
@@ -318,12 +444,26 @@
     }
 
     function addMessage(role, text) {
-      const div = document.createElement('div');
-      div.className = `message ${role}`;
-      div.textContent = text;
-      messagesEl.appendChild(div);
+      const row = document.createElement('div');
+      const isUser = role === 'user';
+      const isTyping = role.includes('typing');
+      const baseRole = isTyping ? 'assistant' : role;
+
+      row.className = `message-row ${isUser ? 'user' : ''}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = `avatar ${isUser ? 'user-av' : 'ai'}`;
+      avatar.textContent = isUser ? '👤' : '✦';
+
+      const bubble = document.createElement('div');
+      bubble.className = `message ${baseRole}${isTyping ? ' typing' : ''}`;
+      bubble.textContent = text;
+
+      row.appendChild(avatar);
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
       scrollToBottom();
-      return div;
+      return bubble;
     }
 
     async function sendMessage() {
@@ -337,7 +477,7 @@
       addMessage('user', text);
       history.push({ role: 'user', content: text });
 
-      const typingEl = addMessage('assistant typing', 'Thinking...');
+      const typingEl = addMessage('assistant typing', 'Thinking…');
 
       try {
         const res = await fetch('/api/chat', {
@@ -511,11 +651,29 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderId: folderId || null, folderName: folderId ? folderName : null }),
       });
-      const { fileCount } = await res.json();
+      const { fileCount, fileSummary } = await res.json();
 
       const countStr = fileCount != null ? ` (${fileCount} files)` : '';
       document.getElementById('status-text').textContent = `OneDrive: ${displayName}${countStr}`;
       updateScopeIndicator(folderId ? folderName : null);
+
+      if (folderId) {
+        try {
+          const briefRes = await fetch('/api/chat/folder-brief', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              folderName: displayName,
+              fileCount: fileCount ?? 0,
+              fileSummary: fileSummary || '',
+            }),
+          });
+          const briefData = await briefRes.json();
+          if (briefData.message) {
+            addMessage('assistant', briefData.message);
+          }
+        } catch { /* silently ignore */ }
+      }
     }
 
     function initFolderTree(folderName, folderId) {
@@ -555,6 +713,15 @@
     }
 
     checkOnedriveStatus();
+
+    // Load welcome message
+    (async () => {
+      try {
+        const res = await fetch('/api/chat/welcome');
+        const data = await res.json();
+        if (data.message) addMessage('assistant', data.message);
+      } catch { /* silently ignore */ }
+    })();
   </script>
 </body>
 </html>

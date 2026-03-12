@@ -3,30 +3,62 @@
 <head>
   <meta charset="UTF-8" />
   <title>Activity Logs – AskEffi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; padding: 32px; }
-    h1 { font-size: 1.3rem; color: #333; margin-bottom: 16px; }
-    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-    select, input { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; }
-    button { padding: 6px 14px; background: #10a37f; color: #fff; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0f1117;
+      color: #e8eaf0;
+      padding: 28px 3vw;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1 { font-size: 1.1rem; font-weight: 600; color: #e8eaf0; margin-bottom: 16px; letter-spacing: -0.01em; }
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    select, input {
+      padding: 6px 10px;
+      border: 1px solid #2a2d3a;
+      border-radius: 7px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      background: #1a1d27;
+      color: #e8eaf0;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    select:focus, input:focus { border-color: #10a37f; }
+    button {
+      padding: 6px 14px;
+      background: #10a37f;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
     button:hover { background: #0d8f6f; }
-    #count { font-size: 0.83rem; color: #888; margin-left: auto; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); font-size: 0.85rem; }
-    thead { background: #10a37f; color: #fff; }
-    th { padding: 10px 14px; text-align: left; font-weight: 600; }
-    td { padding: 9px 14px; border-bottom: 1px solid #f0f0f0; color: #333; vertical-align: top; }
+    #count { font-size: 0.8rem; color: #6b7280; margin-left: auto; }
+    table { width: 100%; border-collapse: collapse; background: #1a1d27; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.4); font-size: 0.83rem; border: 1px solid #2a2d3a; }
+    thead { background: #161820; }
+    th { padding: 10px 14px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #2a2d3a; }
+    td { padding: 9px 14px; border-bottom: 1px solid #22263a; color: #c9cbd3; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #f8fffe; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
-    .badge.chat { background: #dbeafe; color: #1d4ed8; }
-    .badge.folder_select { background: #d1fae5; color: #065f46; }
-    .badge.folder_refresh { background: #e0f2fe; color: #0369a1; }
-    .badge.onedrive_connect { background: #ede9fe; color: #5b21b6; }
-    .badge.onedrive_disconnect { background: #fee2e2; color: #991b1b; }
-    .badge.error { background: #fee2e2; color: #b91c1c; }
-    .details { color: #666; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-width: 400px; }
-    #empty { text-align: center; padding: 48px; color: #aaa; font-size: 0.95rem; }
+    tr:hover td { background: rgba(16,163,127,0.05); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+    .badge.chat { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .badge.folder_select { background: rgba(16,163,127,0.15); color: #34d399; }
+    .badge.folder_refresh { background: rgba(14,165,233,0.15); color: #38bdf8; }
+    .badge.onedrive_connect { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .badge.onedrive_disconnect { background: rgba(239,68,68,0.12); color: #f87171; }
+    .badge.error { background: rgba(239,68,68,0.12); color: #f87171; }
+    .details { color: #6b7280; font-size: 0.78rem; white-space: pre-wrap; word-break: break-all; max-width: 400px; }
+    #empty { text-align: center; padding: 48px; color: #4b5563; font-size: 0.9rem; }
   </style>
 </head>
 <body>
