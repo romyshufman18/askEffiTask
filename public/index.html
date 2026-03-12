@@ -297,7 +297,6 @@
         <button id="connect-btn" onclick="window.location='/auth/onedrive'">Connect OneDrive</button>
       </div>
       <div id="messages">
-        <div class="message assistant">Hi! I'm your AI assistant. How can I help you today?</div>
       </div>
       <div class="input-area">
         <textarea id="user-input" rows="1" placeholder="Type a message..."></textarea>
@@ -511,11 +510,29 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderId: folderId || null, folderName: folderId ? folderName : null }),
       });
-      const { fileCount } = await res.json();
+      const { fileCount, fileSummary } = await res.json();
 
       const countStr = fileCount != null ? ` (${fileCount} files)` : '';
       document.getElementById('status-text').textContent = `OneDrive: ${displayName}${countStr}`;
       updateScopeIndicator(folderId ? folderName : null);
+
+      if (folderId) {
+        try {
+          const briefRes = await fetch('/api/chat/folder-brief', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              folderName: displayName,
+              fileCount: fileCount ?? 0,
+              fileSummary: fileSummary || '',
+            }),
+          });
+          const briefData = await briefRes.json();
+          if (briefData.message) {
+            addMessage('assistant', briefData.message);
+          }
+        } catch { /* silently ignore */ }
+      }
     }
 
     function initFolderTree(folderName, folderId) {
@@ -555,6 +572,15 @@
     }
 
     checkOnedriveStatus();
+
+    // Load welcome message
+    (async () => {
+      try {
+        const res = await fetch('/api/chat/welcome');
+        const data = await res.json();
+        if (data.message) addMessage('assistant', data.message);
+      } catch { /* silently ignore */ }
+    })();
   </script>
 </body>
 </html>
