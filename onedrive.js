@@ -1,5 +1,6 @@
 const mammoth = require('mammoth');
 const pdfParse = require('pdf-parse');
+const { parseOffice } = require('officeparser');
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const FOLDER = process.env.ONEDRIVE_FOLDER || 'documents';
@@ -53,6 +54,8 @@ const EXTENSION_MIME = {
 const READABLE_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
   'application/msword',  // .doc
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+  'application/vnd.ms-powerpoint', // .ppt
   'application/pdf',
   'text/plain',
   'text/csv',
@@ -96,6 +99,14 @@ async function getFileContent(accessToken, itemId, size, mimeType, filename) {
     const result = await mammoth.extractRawText({ buffer });
     console.log(`[getFileContent] mammoth done: text length=${result.value.length}, messages=${JSON.stringify(result.messages)}`);
     return { readable: true, text: result.value };
+  }
+
+  if (mimeType.includes('presentationml') || mimeType === 'application/vnd.ms-powerpoint') {
+    console.log(`[getFileContent] parsing with officeparser...`);
+    const ast = await parseOffice(buffer);
+    const text = ast.toText();
+    console.log(`[getFileContent] officeparser done: text length=${text.length}`);
+    return { readable: true, text };
   }
 
   if (mimeType === 'application/pdf') {

@@ -78,6 +78,20 @@ if (!mentionedFile) {
 
 ---
 
+## Bug 6: `pdf-parse` v2 incompatible API
+
+**Symptom:** `TypeError: pdfParse is not a function` when trying to read a PDF file.
+
+**Root cause:** `pdf-parse@^2.x` exports a class-based API (`{ PDFParse, AbortException, ... }`) — not a callable function. The code assumed v1's `require('pdf-parse')` → function pattern.
+
+**Fix:** Downgraded to `pdf-parse@1`:
+```bash
+npm install pdf-parse@1
+```
+v1 exports the parse function directly, matching the existing usage: `pdfParse(buffer)`.
+
+---
+
 ## Remaining known limitations
 
 | File type | Status |
@@ -85,6 +99,6 @@ if (!mentionedFile) {
 | `.docx` / `.doc` | ✅ Supported via `mammoth` |
 | `.pdf` | ✅ Supported via `pdf-parse` |
 | `.txt` / `.csv` / `.md` | ✅ Supported |
-| `.pptx` / `.ppt` | ❌ Not yet supported — returns "unsupported file type" |
+| `.pptx` / `.ppt` | ✅ Supported via `officeparser` |
 | `.xlsx` | ❌ Not yet supported — returns "unsupported file type" |
 | Images / video / audio | ❌ By design — returns "unsupported file type" |

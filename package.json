@@ -13,8 +13,9 @@
     "express": "^4.19.2",
     "express-session": "^1.18.0",
     "mammoth": "^1.11.0",
+    "officeparser": "^6.0.4",
     "openai": "^4.52.0",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^1.1.4"
   },
   "devDependencies": {
     "jest": "^30.3.0",
