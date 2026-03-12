@@ -82,7 +82,7 @@ app.post('/api/onedrive/focus', async (req, res) => {
     fileCount,
   });
 
-  req.session.save(() => res.json({ ok: true, fileCount }));
+  req.session.save(() => res.json({ ok: true, fileCount, fileSummary: req.session.onedrive_file_summary || '' }));
 });
 
 app.post('/api/chat', async (req, res) => {
@@ -117,6 +117,7 @@ app.post('/api/chat', async (req, res) => {
     const reply = completion.choices[0].message;
     logger.log('chat', req.session.id, {
       prompt: userPrompt,
+      response: reply.content,
       folderScope: req.session.onedrive_folder_name || (req.session.onedrive_token ? 'Documents' : null),
     });
     res.json({ message: reply });
@@ -124,6 +125,39 @@ app.post('/api/chat', async (req, res) => {
     console.error(err);
     logger.log('error', req.session.id, { endpoint: '/api/chat', error: err.message });
     res.status(500).json({ error: err.message || 'OpenAI API error' });
+  }
+});
+
+app.get('/api/chat/welcome', async (req, res) => {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: 'Introduce yourself as AskEffi, a friendly AI assistant for OneDrive files. Explain what the app does (helps users explore and ask questions about their OneDrive files), and list 3–4 things you can help with. Keep it short and conversational.',
+      }],
+    });
+    res.json({ message: completion.choices[0].message.content });
+  } catch (err) {
+    console.error('Welcome error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/chat/folder-brief', async (req, res) => {
+  const { folderName, fileCount, fileSummary } = req.body;
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: `The user just selected the folder "${folderName}". It contains ${fileCount} file(s). Here is the file list:\n${fileSummary}\n\nBriefly tell the user what's in this folder: mention the folder name, file count, and a breakdown by file type. Then suggest 2–3 things they can ask about. Keep it short and friendly.`,
+      }],
+    });
+    res.json({ message: completion.choices[0].message.content });
+  } catch (err) {
+    console.error('Folder brief error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
