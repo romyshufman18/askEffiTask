@@ -10,17 +10,6 @@ A ChatGPT-powered assistant for exploring and asking questions about your OneDri
 - Proactively introduces itself on load and summarizes each folder you select
 - Logs all activity to a local file, viewable in an admin panel
 
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| OneDrive connection | OAuth login via Microsoft, folder tree browser |
-| Folder focus | Select any subfolder to scope the AI's knowledge |
-| AI chat | Ask questions about your files — the AI knows their metadata |
-| Proactive messages | AI welcome on load; folder briefing on each folder selection |
-| Activity logging | All chats and folder selections logged to `logs/activity.log` |
-| Admin viewer | View logs at `/admin/logs` |
-
 ## Requirements
 
 - [Node.js](https://nodejs.org) v18+
